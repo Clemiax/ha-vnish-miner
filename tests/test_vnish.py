@@ -36,6 +36,7 @@ from vnish_miner.coordinator import (  # noqa: E402
     _parse_presets,
     _parse_settings,
     _parse_summary,
+    _to_th,
 )
 from vnish_miner.vnish_client import (  # noqa: E402
     VnishAuthError,
@@ -316,6 +317,64 @@ def test_parse_summary_keeps_already_th_hashrate_fields_and_rounds() -> None:
 
     assert data.hashrate_instant == 68.47
     assert data.hashrate_average == 68.47
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected"),
+    [
+        (1000, "GH/s", 1.0),
+        (1_250_123.0, "MH/s", 1.25),
+        (1_234.567, "TH/s", 1234.57),
+        (1.23456, "PH/s", 1234.56),
+    ],
+)
+def test_to_th_uses_explicit_unit_and_rounds(
+    value: float, unit: str, expected: float
+) -> None:
+    assert _to_th(value, unit) == expected
+
+
+def test_parse_summary_explicit_unit_overrides_field_default() -> None:
+    data = VnishData()
+    _parse_summary(
+        {
+            "miner": {
+                "instant_hashrate": 1000,
+                "average_hashrate": 1_250_123,
+                "hr_unit": "GH/s",
+            }
+        },
+        data,
+    )
+
+    assert data.hashrate_instant == 1.0
+    assert data.hashrate_average == 1250.12
+
+
+def test_parse_summary_uses_field_units_without_explicit_unit() -> None:
+    data = VnishData()
+    _parse_summary(
+        {
+            "miner": {
+                "hr_realtime": 1000,
+                "hr_average": 68_471.19,
+                "instant_hashrate": 1_234.567,
+            }
+        },
+        data,
+    )
+
+    # hr_* fields take precedence and are implicitly expressed in GH/s.
+    assert data.hashrate_instant == 1.0
+    assert data.hashrate_average == 68.47
+
+    th_data = VnishData()
+    _parse_summary(
+        {"miner": {"instant_hashrate": 1_234.567, "average_hashrate": 1_234.567}},
+        th_data,
+    )
+    assert th_data.hashrate_instant == 1234.57
+    assert th_data.hashrate_average == 1234.57
 
 
 def test_get_info_returns_mac_for_unique_id() -> None:

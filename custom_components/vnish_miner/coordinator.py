@@ -76,19 +76,31 @@ class VnishData:
     raw_presets: dict[str, Any] = field(default_factory=dict)
 
 
-def _normalize_hashrate_th(value: float | None) -> float | None:
-    """Normalize a raw hashrate value to TH/s, rounded to 2 decimals.
-
-    ``/api/v1/info`` and most ``/api/v1/summary`` payloads report hashrate in
-    GH/s; ``instant_hashrate``/``average_hashrate`` are already in TH/s. A
-    value over 1000 is assumed to be GH/s and is scaled down accordingly.
-    """
+def _to_th(value: float | None, unit: str | None) -> float | None:
+    """Convert a hashrate value to TH/s and round it to 2 decimals."""
     if value is None:
         return None
     value_th = float(value)
-    if value_th > 1000:
+    normalized_unit = (unit or "TH/s").strip().upper().replace(" ", "")
+    if normalized_unit.startswith("MH"):
+        value_th /= 1_000_000.0
+    elif normalized_unit.startswith("GH"):
         value_th /= 1000.0
+    elif normalized_unit.startswith("PH"):
+        value_th *= 1000.0
     return round(value_th, 2)
+
+
+def _parse_hashrate(
+    candidates: tuple[tuple[dict[str, Any], str, str], ...],
+) -> float | None:
+    """Return the first hashrate candidate converted using explicit or field units."""
+    for source, key, field_unit in candidates:
+        if key not in source or source[key] is None:
+            continue
+        explicit_unit = _first(source, "hr_unit", "unit")
+        return _to_th(source[key], explicit_unit or field_unit)
+    return None
 
 
 def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
@@ -105,47 +117,38 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
         legacy_hashrate = {}
 
     data.hashrate_unit = "TH/s"
-    data.hashrate_instant = _normalize_hashrate_th(
-        _first(
-            miner,
-            "hr_realtime",
-            "instant_hashrate",
-            "hr_instant",
-            default=_first(
-                legacy_hashrate,
-                "hr_realtime",
-                "instant",
-                "realtime",
-                "hr_instant",
-                default=_first(raw, "hashrate_instant", "hr_realtime"),
-            ),
+    data.hashrate_instant = _parse_hashrate(
+        (
+            (miner, "hr_realtime", "GH/s"),
+            (miner, "instant_hashrate", "TH/s"),
+            (miner, "hr_instant", "GH/s"),
+            (legacy_hashrate, "hr_realtime", "GH/s"),
+            (legacy_hashrate, "instant", "GH/s"),
+            (legacy_hashrate, "realtime", "GH/s"),
+            (legacy_hashrate, "hr_instant", "GH/s"),
+            (raw, "hashrate_instant", "GH/s"),
+            (raw, "hr_realtime", "GH/s"),
         )
     )
-    data.hashrate_average = _normalize_hashrate_th(
-        _first(
-            miner,
-            "hr_average",
-            "average_hashrate",
-            "hr_avg",
-            default=_first(
-                legacy_hashrate,
-                "hr_average",
-                "average",
-                "avg",
-                default=_first(raw, "hashrate_average", "hr_average"),
-            ),
+    data.hashrate_average = _parse_hashrate(
+        (
+            (miner, "hr_average", "GH/s"),
+            (miner, "average_hashrate", "TH/s"),
+            (miner, "hr_avg", "GH/s"),
+            (legacy_hashrate, "hr_average", "GH/s"),
+            (legacy_hashrate, "average", "GH/s"),
+            (legacy_hashrate, "avg", "GH/s"),
+            (raw, "hashrate_average", "GH/s"),
+            (raw, "hr_average", "GH/s"),
         )
     )
-    data.hashrate_nominal = _normalize_hashrate_th(
-        _first(
-            miner,
-            "hr_nominal",
-            default=_first(
-                legacy_hashrate,
-                "hr_nominal",
-                "nominal",
-                default=_first(raw, "hashrate_nominal", "hr_nominal"),
-            ),
+    data.hashrate_nominal = _parse_hashrate(
+        (
+            (miner, "hr_nominal", "GH/s"),
+            (legacy_hashrate, "hr_nominal", "GH/s"),
+            (legacy_hashrate, "nominal", "GH/s"),
+            (raw, "hashrate_nominal", "GH/s"),
+            (raw, "hr_nominal", "GH/s"),
         )
     )
 
