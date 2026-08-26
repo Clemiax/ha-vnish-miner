@@ -20,7 +20,6 @@ from .coordinator import VnishData, VnishDataUpdateCoordinator
 from .entity import VnishEntity
 
 HASHRATE_GH = "GH/s"
-HASHRATE_TH = "TH/s"
 EFFICIENCY_J_TH = "J/TH"
 
 
@@ -43,7 +42,7 @@ SENSOR_DESCRIPTIONS: tuple[VnishSensorEntityDescription, ...] = (
     VnishSensorEntityDescription(
         key="hashrate_average",
         translation_key="hashrate_average",
-        native_unit_of_measurement=HASHRATE_TH,
+        native_unit_of_measurement=HASHRATE_GH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:speedometer-medium",
         value_fn=lambda data: data.hashrate_average,
@@ -51,7 +50,7 @@ SENSOR_DESCRIPTIONS: tuple[VnishSensorEntityDescription, ...] = (
     VnishSensorEntityDescription(
         key="hashrate_nominal",
         translation_key="hashrate_nominal",
-        native_unit_of_measurement=HASHRATE_TH,
+        native_unit_of_measurement=HASHRATE_GH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:speedometer-slow",
         value_fn=lambda data: data.hashrate_nominal,

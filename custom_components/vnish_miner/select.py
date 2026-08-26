@@ -1,20 +1,16 @@
 """Select platform for the VNish ASIC Miner integration (overclock presets)."""
 from __future__ import annotations
 
-import logging
-
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import VnishDataUpdateCoordinator
 from .entity import VnishEntity
 from .vnish_client import VnishError
-
-_LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -52,6 +48,5 @@ class VnishPresetSelectEntity(VnishEntity, SelectEntity):
         try:
             await self.coordinator.client.set_preset(option)
         except VnishError as err:
-            _LOGGER.error("Failed to set preset %s: %s", option, err)
-            raise
+            raise HomeAssistantError(f"Failed to set preset {option}: {err}") from err
         await self.coordinator.async_request_refresh()

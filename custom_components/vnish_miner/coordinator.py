@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for the VNish ASIC Miner integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -203,11 +204,13 @@ class VnishDataUpdateCoordinator(DataUpdateCoordinator[VnishData]):
     async def _async_update_data(self) -> VnishData:
         data = VnishData()
         try:
-            summary = await self.client.get_summary()
-            info = await self.client.get_info()
-            status = await self.client.get_status()
-            settings = await self.client.get_settings()
-            presets = await self.client.get_presets()
+            summary, info, status, settings, presets = await asyncio.gather(
+                self.client.get_summary(),
+                self.client.get_info(),
+                self.client.get_status(),
+                self.client.get_settings(),
+                self.client.get_presets(),
+            )
         except VnishAuthError as err:
             raise UpdateFailed(f"Authentication error: {err}") from err
         except VnishConnectionError as err:

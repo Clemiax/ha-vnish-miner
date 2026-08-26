@@ -6,7 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -25,15 +25,21 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST): str,
-        vol.Required(CONF_API_KEY): str,
-        vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+        vol.Required(CONF_HOST): vol.All(str, vol.Strip, vol.Length(min=1)),
+        vol.Required(CONF_API_KEY): vol.All(str, vol.Length(min=1)),
+        vol.Optional(CONF_PORT, default=DEFAULT_PORT): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=65535)
+        ),
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+            vol.Coerce(int), vol.Range(min=5)
+        ),
     }
 )
 
 
-async def _validate_input(hass: Any, data: dict[str, Any]) -> dict[str, Any]:
+async def _validate_input(
+    hass: HomeAssistant, data: dict[str, Any]
+) -> dict[str, Any]:
     """Validate that the user input allows connecting to the miner.
 
     Returns the miner ``info`` payload (used to build the unique id).
@@ -139,7 +145,7 @@ class VnishOptionsFlowHandler(OptionsFlow):
                 vol.Required(CONF_API_KEY, default=current_api_key): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=current_scan_interval
-                ): int,
+                ): vol.All(vol.Coerce(int), vol.Range(min=5)),
             }
         )
 

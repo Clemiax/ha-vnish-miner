@@ -1,19 +1,18 @@
 """Switch platform for the VNish ASIC Miner integration."""
 from __future__ import annotations
 
-import logging
+from typing import Any
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import VnishDataUpdateCoordinator
 from .entity import VnishEntity
 from .vnish_client import VnishError
-
-_LOGGER = logging.getLogger(__name__)
 
 PAUSED_STATES = {"paused", "pause", "stopped", "stopping"}
 
@@ -48,20 +47,18 @@ class VnishMiningSwitchEntity(VnishEntity, SwitchEntity):
             return None
         return status.lower() not in PAUSED_STATES
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Resume mining."""
         try:
             await self.coordinator.client.resume_mining()
         except VnishError as err:
-            _LOGGER.error("Failed to resume mining: %s", err)
-            raise
+            raise HomeAssistantError(f"Failed to resume mining: {err}") from err
         await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Pause mining."""
         try:
             await self.coordinator.client.pause_mining()
         except VnishError as err:
-            _LOGGER.error("Failed to pause mining: %s", err)
-            raise
+            raise HomeAssistantError(f"Failed to pause mining: {err}") from err
         await self.coordinator.async_request_refresh()

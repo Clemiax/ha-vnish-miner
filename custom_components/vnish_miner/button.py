@@ -1,22 +1,19 @@
 """Button platform for the VNish ASIC Miner integration."""
 from __future__ import annotations
 
-import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import VnishDataUpdateCoordinator
 from .entity import VnishEntity
 from .vnish_client import VnishClient, VnishError
-
-_LOGGER = logging.getLogger(__name__)
-
 
 @dataclass(frozen=True, kw_only=True)
 class VnishButtonEntityDescription(ButtonEntityDescription):
@@ -73,8 +70,7 @@ class VnishButton(VnishEntity, ButtonEntity):
         try:
             await self.entity_description.press_fn(self.coordinator.client)
         except VnishError as err:
-            _LOGGER.error(
-                "Failed to execute %s: %s", self.entity_description.key, err
-            )
-            raise
+            raise HomeAssistantError(
+                f"Failed to execute {self.entity_description.key}: {err}"
+            ) from err
         await self.coordinator.async_request_refresh()

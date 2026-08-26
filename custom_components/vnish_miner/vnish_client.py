@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
 
 import aiohttp
-
-_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 10
 

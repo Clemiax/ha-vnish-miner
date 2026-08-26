@@ -1,12 +1,10 @@
 """The VNish ASIC Miner integration."""
 from __future__ import annotations
 
-import logging
-
-import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_API_KEY,
@@ -19,8 +17,6 @@ from .const import (
 from .coordinator import VnishDataUpdateCoordinator
 from .vnish_client import VnishClient
 
-_LOGGER = logging.getLogger(__name__)
-
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SELECT,
@@ -31,7 +27,7 @@ PLATFORMS: list[Platform] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up VNish ASIC Miner from a config entry."""
-    session = aiohttp.ClientSession()
+    session = async_get_clientsession(hass)
     client = VnishClient(
         host=entry.data[CONF_HOST],
         api_key=entry.data[CONF_API_KEY],
@@ -50,7 +46,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "client": client,
-        "session": session,
     }
 
     entry.async_on_unload(entry.add_update_listener(async_update_options))
@@ -68,6 +63,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        data = hass.data[DOMAIN].pop(entry.entry_id)
-        await data["session"].close()
+        hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok

@@ -95,12 +95,12 @@ class _FakeSession:
 
     def __init__(self, responses: dict[str, tuple[int, dict]]) -> None:
         self._responses = responses
-        self.calls: list[tuple[str, str, dict | None]] = []
+        self.calls: list[tuple[str, str, dict | None, dict | None]] = []
 
     def request(self, method, url, json=None, headers=None, timeout=None):
         path = url.split("://", 1)[-1].split("/", 1)[-1]
         path = f"/{path}"
-        self.calls.append((method, path, json))
+        self.calls.append((method, path, json, headers))
         status, payload = self._responses.get(path, (404, {}))
         return _FakeResponse(status, payload)
 
@@ -141,10 +141,11 @@ def test_set_preset_sends_expected_payload() -> None:
     session = _FakeSession({"/api/v1/settings": (200, {"ok": True})})
     client = VnishClient(host="192.168.1.50", api_key="test-key", session=session)
     asyncio.run(client.set_preset("2600"))
-    method, path, payload = session.calls[0]
+    method, path, payload, headers = session.calls[0]
     assert method == "POST"
     assert path == "/api/v1/settings"
     assert payload == {"miner": {"overclock": {"preset": "2600"}}}
+    assert headers == {"X-API-Key": "test-key"}
 
 
 def test_pause_and_resume_mining_call_expected_endpoints() -> None:
