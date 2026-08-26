@@ -91,58 +91,141 @@ def _to_th(value: float | None, unit: str) -> float | None:
 
 
 def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
-    hashrate = _first(raw, "hashrate", default={}) or {}
-    unit = _first(hashrate, "hr_unit", "unit", default="GH/s")
-    data.hashrate_unit = unit
-    data.hashrate_instant = _first(
-        hashrate, "hr_realtime", "instant", "realtime", "hr_instant"
+    """Parse ``/api/v1/summary``.
+
+    VNish 1.3.x nests every metric under a root ``"miner"`` object; older
+    firmware exposes them flat (optionally under a ``"hashrate"`` sub-object).
+    Fields are looked up on ``miner`` first, falling back to the legacy
+    flat/nested locations on ``raw`` so both payload shapes are supported.
+    """
+    miner = raw.get("miner") if isinstance(raw.get("miner"), dict) else raw
+    legacy_hashrate = _first(raw, "hashrate", default={}) or {}
+    if not isinstance(legacy_hashrate, dict):
+        legacy_hashrate = {}
+
+    data.hashrate_unit = _first(
+        miner,
+        "hr_unit",
+        "unit",
+        default=_first(legacy_hashrate, "hr_unit", "unit", default="GH/s"),
     )
-    data.hashrate_average = _first(hashrate, "hr_average", "average", "avg")
-    data.hashrate_nominal = _first(hashrate, "hr_nominal", "nominal")
+    data.hashrate_instant = _first(
+        miner,
+        "hr_realtime",
+        "instant_hashrate",
+        "hr_instant",
+        default=_first(
+            legacy_hashrate,
+            "hr_realtime",
+            "instant",
+            "realtime",
+            "hr_instant",
+            default=_first(raw, "hashrate_instant", "hr_realtime"),
+        ),
+    )
+    data.hashrate_average = _first(
+        miner,
+        "hr_average",
+        "average_hashrate",
+        "hr_avg",
+        default=_first(
+            legacy_hashrate,
+            "hr_average",
+            "average",
+            "avg",
+            default=_first(raw, "hashrate_average", "hr_average"),
+        ),
+    )
+    data.hashrate_nominal = _first(
+        miner,
+        "hr_nominal",
+        default=_first(
+            legacy_hashrate,
+            "hr_nominal",
+            "nominal",
+            default=_first(raw, "hashrate_nominal", "hr_nominal"),
+        ),
+    )
 
-    # Some firmware versions expose hashrate fields flat on the summary root.
-    if data.hashrate_instant is None:
-        data.hashrate_instant = _first(raw, "hashrate_instant", "hr_realtime")
-    if data.hashrate_average is None:
-        data.hashrate_average = _first(raw, "hashrate_average", "hr_average")
-    if data.hashrate_nominal is None:
-        data.hashrate_nominal = _first(raw, "hashrate_nominal", "hr_nominal")
-
-    pcb_temp = _first(raw, "pcb_temp", "pcb_sensors", default={}) or {}
+    pcb_temp = _first(miner, "pcb_temp", default=None)
+    if not isinstance(pcb_temp, dict):
+        pcb_temp = _first(raw, "pcb_temp", "pcb_sensors", default={}) or {}
     data.pcb_temp_min = _first(pcb_temp, "min")
     data.pcb_temp_max = _first(pcb_temp, "max")
 
-    chip_temp = _first(raw, "chip_temp", "chip_sensors", default={}) or {}
+    chip_temp = _first(miner, "chip_temp", default=None)
+    if not isinstance(chip_temp, dict):
+        chip_temp = _first(raw, "chip_temp", "chip_sensors", default={}) or {}
     data.chip_temp_min = _first(chip_temp, "min")
     data.chip_temp_max = _first(chip_temp, "max")
 
-    fans = _first(raw, "fans", "fan_num", default=[])
-    fan_speeds: list[float] = []
-    if isinstance(fans, list):
-        for fan in fans:
-            if isinstance(fan, dict):
-                speed = _first(fan, "speed_percent", "speed", "rpm_percent")
-                if speed is not None:
-                    fan_speeds.append(speed)
-    if fan_speeds:
-        data.fan_speed_max = max(fan_speeds)
-    else:
-        data.fan_speed_max = _first(raw, "fan_speed", "fan_speed_max")
+    cooling = _first(miner, "cooling", default={})
+    if not isinstance(cooling, dict):
+        cooling = {}
+    fan_speed_max = _first(cooling, "fan_duty")
+    if fan_speed_max is None:
+        fan_speeds = [
+            speed
+            for fan in _first(cooling, "fans", default=[]) or []
+            if isinstance(fan, dict)
+            for speed in [_first(fan, "rpm_percent", "speed_percent", "speed")]
+            if speed is not None
+        ]
+        if fan_speeds:
+            fan_speed_max = max(fan_speeds)
+    if fan_speed_max is None:
+        legacy_fans = _first(raw, "fans", "fan_num", default=[])
+        fan_speeds = [
+            speed
+            for fan in legacy_fans
+            if isinstance(fan, dict)
+            for speed in [_first(fan, "speed_percent", "speed", "rpm_percent")]
+            if speed is not None
+        ] if isinstance(legacy_fans, list) else []
+        if fan_speeds:
+            fan_speed_max = max(fan_speeds)
+        else:
+            fan_speed_max = _first(
+                miner,
+                "fan_speed_max",
+                default=_first(raw, "fan_speed", "fan_speed_max"),
+            )
+    data.fan_speed_max = fan_speed_max
 
-    data.power_consumption = _first(raw, "power_consumption", "power")
+    data.power_consumption = _first(
+        miner,
+        "power_consumption",
+        "power_usage",
+        "power",
+        default=_first(raw, "power_consumption", "power"),
+    )
 
-    if data.power_consumption and data.hashrate_average:
+    efficiency = _first(miner, "power_efficiency")
+    if efficiency is None and data.power_consumption and data.hashrate_average:
         th_average = _to_th(data.hashrate_average, data.hashrate_unit)
         if th_average:
-            data.efficiency = round(data.power_consumption / th_average, 2)
+            efficiency = round(data.power_consumption / th_average, 2)
+    data.efficiency = efficiency
 
-    status = _first(raw, "miner_status", default={})
+    status = _first(
+        miner, "miner_status", default=_first(raw, "miner_status", "state", default={})
+    )
     if isinstance(status, dict):
-        data.miner_status = _first(status, "miner_state", "state", "status")
+        data.miner_status = _first(
+            status, "miner_state", "state", "status", default=_first(raw, "state")
+        )
     else:
         data.miner_status = status
 
-    data.throttled = bool(_first(raw, "throttled", "overheat", default=False))
+    status_block = status if isinstance(status, dict) else {}
+    throttled_pct = _first(status_block, "throttled", default=100)
+    is_throttled = isinstance(throttled_pct, (int, float)) and throttled_pct < 100
+    if not is_throttled:
+        is_throttled = bool(
+            _first(miner, "throttled", default=_first(raw, "throttled", "overheat", default=False))
+        )
+    data.throttled = bool(is_throttled)
+
     data.raw_summary = raw
 
 

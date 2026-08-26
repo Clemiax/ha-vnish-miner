@@ -35,6 +35,7 @@ from vnish_miner.coordinator import (  # noqa: E402
     _parse_info,
     _parse_presets,
     _parse_settings,
+    _parse_summary,
 )
 from vnish_miner.vnish_client import (  # noqa: E402
     VnishAuthError,
@@ -147,6 +148,105 @@ def test_get_summary_parses_payload() -> None:
     result = asyncio.run(client.get_summary())
     assert result["hashrate"]["hr_realtime"] == 96000
     assert result["miner_status"]["miner_state"] == "mining"
+
+
+# -- Summary parsing (VNish 1.3.x nested "miner" payload) --------------------
+
+FIXTURE_SUMMARY_VNISH_1_3_5 = {
+    "miner": {
+        "hr_realtime": 96000,
+        "hr_average": 95500,
+        "hr_nominal": 100000,
+        "hr_unit": "GH/s",
+        "power_consumption": 3200,
+        "pcb_temp": {"min": 40, "max": 52},
+        "chip_temp": {"min": 55, "max": 78},
+        "cooling": {
+            "fan_duty": 65,
+            "fans": [
+                {"rpm_percent": 60},
+                {"rpm_percent": 70},
+            ],
+        },
+        "miner_status": {"miner_state": "mining", "throttled": 100},
+    }
+}
+
+
+def test_parse_summary_supports_nested_vnish_1_3_5_payload() -> None:
+    data = VnishData()
+    _parse_summary(FIXTURE_SUMMARY_VNISH_1_3_5, data)
+
+    assert data.hashrate_instant == 96000
+    assert data.hashrate_average == 95500
+    assert data.hashrate_nominal == 100000
+    assert data.power_consumption == 3200
+    assert data.chip_temp_min == 55
+    assert data.chip_temp_max == 78
+    assert data.pcb_temp_min == 40
+    assert data.pcb_temp_max == 52
+    assert data.fan_speed_max == 65
+    assert data.miner_status == "mining"
+    assert data.throttled is False
+    assert data.efficiency == round(3200 / 95.5, 2)
+
+    for field in (
+        data.hashrate_instant,
+        data.hashrate_average,
+        data.hashrate_nominal,
+        data.power_consumption,
+        data.chip_temp_min,
+        data.chip_temp_max,
+        data.pcb_temp_min,
+        data.pcb_temp_max,
+        data.fan_speed_max,
+        data.miner_status,
+        data.efficiency,
+    ):
+        assert field is not None
+
+
+def test_parse_summary_computes_fan_speed_from_fans_list_when_no_fan_duty() -> None:
+    data = VnishData()
+    payload = {
+        "miner": {
+            "hr_average": 90000,
+            "power_consumption": 3100,
+            "cooling": {"fans": [{"rpm_percent": 55}, {"rpm_percent": 80}]},
+        }
+    }
+    _parse_summary(payload, data)
+    assert data.fan_speed_max == 80
+
+
+def test_parse_summary_detects_throttled_state() -> None:
+    data = VnishData()
+    payload = {
+        "miner": {
+            "hr_average": 90000,
+            "power_consumption": 3300,
+            "miner_status": {"miner_state": "mining", "throttled": 80},
+        }
+    }
+    _parse_summary(payload, data)
+    assert data.throttled is True
+
+
+def test_parse_summary_still_supports_legacy_flat_payload() -> None:
+    data = VnishData()
+    _parse_summary(FIXTURE_SUMMARY, data)
+
+    assert data.hashrate_instant == 96000
+    assert data.hashrate_average == 95500
+    assert data.hashrate_nominal == 100000
+    assert data.chip_temp_min == 55
+    assert data.chip_temp_max == 78
+    assert data.pcb_temp_min == 40
+    assert data.pcb_temp_max == 52
+    assert data.fan_speed_max == 65
+    assert data.power_consumption == 3200
+    assert data.miner_status == "mining"
+    assert data.throttled is False
 
 
 def test_get_info_returns_mac_for_unique_id() -> None:
