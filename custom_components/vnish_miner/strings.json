@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to your VNish miner",
+        "description": "Enter the connection details of your ASIC miner running VNish firmware.",
+        "data": {
+          "host": "Host (IP address or hostname)",
+          "api_key": "API key",
+          "port": "Port",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the miner. Check the host/port.",
+      "invalid_auth": "Invalid API key.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This miner is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update VNish miner options",
+        "data": {
+          "api_key": "API key",
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the miner. Check the host/port.",
+      "invalid_auth": "Invalid API key.",
+      "unknown": "Unexpected error occurred."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "hashrate_instant": { "name": "Instant hashrate" },
+      "hashrate_average": { "name": "Average hashrate" },
+      "hashrate_nominal": { "name": "Nominal hashrate" },
+      "power_consumption": { "name": "Power consumption" },
+      "chip_temp_max": { "name": "Max chip temperature" },
+      "pcb_temp_max": { "name": "Max PCB temperature" },
+      "fan_speed_max": { "name": "Max fan speed" },
+      "efficiency": { "name": "Efficiency" },
+      "miner_status": { "name": "Miner status" }
+    },
+    "select": {
+      "preset": { "name": "Overclock preset" }
+    },
+    "switch": {
+      "mining": { "name": "Mining" }
+    },
+    "button": {
+      "restart_mining": { "name": "Restart mining" },
+      "reboot_hardware": { "name": "Reboot ASIC hardware" }
+    }
+  }
+}

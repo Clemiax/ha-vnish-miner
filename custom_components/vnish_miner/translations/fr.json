@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion à votre mineur VNish",
+        "description": "Saisissez les informations de connexion de votre mineur ASIC sous firmware VNish.",
+        "data": {
+          "host": "Hôte (adresse IP ou nom d'hôte)",
+          "api_key": "Clé API",
+          "port": "Port",
+          "scan_interval": "Intervalle de rafraîchissement (secondes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter au mineur. Vérifiez l'hôte/le port.",
+      "invalid_auth": "Clé API invalide.",
+      "unknown": "Une erreur inattendue est survenue."
+    },
+    "abort": {
+      "already_configured": "Ce mineur est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Modifier les options du mineur VNish",
+        "data": {
+          "api_key": "Clé API",
+          "scan_interval": "Intervalle de rafraîchissement (secondes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter au mineur. Vérifiez l'hôte/le port.",
+      "invalid_auth": "Clé API invalide.",
+      "unknown": "Une erreur inattendue est survenue."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "hashrate_instant": { "name": "Hashrate instantané" },
+      "hashrate_average": { "name": "Hashrate moyen" },
+      "hashrate_nominal": { "name": "Hashrate nominal" },
+      "power_consumption": { "name": "Puissance consommée" },
+      "chip_temp_max": { "name": "Température max puces" },
+      "pcb_temp_max": { "name": "Température max PCB" },
+      "fan_speed_max": { "name": "Vitesse max ventilateurs" },
+      "efficiency": { "name": "Efficacité énergétique" },
+      "miner_status": { "name": "Statut du mineur" }
+    },
+    "select": {
+      "preset": { "name": "Profil overclock" }
+    },
+    "switch": {
+      "mining": { "name": "Minage" }
+    },
+    "button": {
+      "restart_mining": { "name": "Redémarrer le minage" },
+      "reboot_hardware": { "name": "Redémarrer le matériel ASIC" }
+    }
+  }
+}
