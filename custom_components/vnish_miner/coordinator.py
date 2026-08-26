@@ -51,7 +51,7 @@ class VnishData:
     hashrate_instant: float | None = None
     hashrate_average: float | None = None
     hashrate_nominal: float | None = None
-    hashrate_unit: str = "GH/s"
+    hashrate_unit: str = "TH/s"
 
     pcb_temp_min: float | None = None
     pcb_temp_max: float | None = None
@@ -76,18 +76,19 @@ class VnishData:
     raw_presets: dict[str, Any] = field(default_factory=dict)
 
 
-def _to_th(value: float | None, unit: str) -> float | None:
-    """Convert a hashrate value to TH/s given its unit."""
+def _normalize_hashrate_th(value: float | None) -> float | None:
+    """Normalize a raw hashrate value to TH/s, rounded to 2 decimals.
+
+    ``/api/v1/info`` and most ``/api/v1/summary`` payloads report hashrate in
+    GH/s; ``instant_hashrate``/``average_hashrate`` are already in TH/s. A
+    value over 1000 is assumed to be GH/s and is scaled down accordingly.
+    """
     if value is None:
         return None
-    unit = (unit or "").upper()
-    if unit.startswith("GH"):
-        return value / 1000
-    if unit.startswith("MH"):
-        return value / 1_000_000
-    if unit.startswith("PH"):
-        return value * 1000
-    return value
+    value_th = float(value)
+    if value_th > 1000:
+        value_th /= 1000.0
+    return round(value_th, 2)
 
 
 def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
@@ -103,48 +104,49 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
     if not isinstance(legacy_hashrate, dict):
         legacy_hashrate = {}
 
-    data.hashrate_unit = _first(
-        miner,
-        "hr_unit",
-        "unit",
-        default=_first(legacy_hashrate, "hr_unit", "unit", default="GH/s"),
-    )
-    data.hashrate_instant = _first(
-        miner,
-        "hr_realtime",
-        "instant_hashrate",
-        "hr_instant",
-        default=_first(
-            legacy_hashrate,
+    data.hashrate_unit = "TH/s"
+    data.hashrate_instant = _normalize_hashrate_th(
+        _first(
+            miner,
             "hr_realtime",
-            "instant",
-            "realtime",
+            "instant_hashrate",
             "hr_instant",
-            default=_first(raw, "hashrate_instant", "hr_realtime"),
-        ),
+            default=_first(
+                legacy_hashrate,
+                "hr_realtime",
+                "instant",
+                "realtime",
+                "hr_instant",
+                default=_first(raw, "hashrate_instant", "hr_realtime"),
+            ),
+        )
     )
-    data.hashrate_average = _first(
-        miner,
-        "hr_average",
-        "average_hashrate",
-        "hr_avg",
-        default=_first(
-            legacy_hashrate,
+    data.hashrate_average = _normalize_hashrate_th(
+        _first(
+            miner,
             "hr_average",
-            "average",
-            "avg",
-            default=_first(raw, "hashrate_average", "hr_average"),
-        ),
+            "average_hashrate",
+            "hr_avg",
+            default=_first(
+                legacy_hashrate,
+                "hr_average",
+                "average",
+                "avg",
+                default=_first(raw, "hashrate_average", "hr_average"),
+            ),
+        )
     )
-    data.hashrate_nominal = _first(
-        miner,
-        "hr_nominal",
-        default=_first(
-            legacy_hashrate,
+    data.hashrate_nominal = _normalize_hashrate_th(
+        _first(
+            miner,
             "hr_nominal",
-            "nominal",
-            default=_first(raw, "hashrate_nominal", "hr_nominal"),
-        ),
+            default=_first(
+                legacy_hashrate,
+                "hr_nominal",
+                "nominal",
+                default=_first(raw, "hashrate_nominal", "hr_nominal"),
+            ),
+        )
     )
 
     pcb_temp = _first(miner, "pcb_temp", default=None)
@@ -212,10 +214,8 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
         default=_first(raw, "power_efficiency", "efficiency"),
     )
     if efficiency is None and data.power_consumption and data.hashrate_average:
-        th_average = _to_th(data.hashrate_average, data.hashrate_unit)
-        if th_average:
-            efficiency = round(data.power_consumption / th_average, 2)
-    data.efficiency = efficiency
+        efficiency = data.power_consumption / data.hashrate_average
+    data.efficiency = round(float(efficiency), 2) if efficiency is not None else None
 
     status = _first(
         miner, "miner_status", default=_first(raw, "miner_status", "state", default={})

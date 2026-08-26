@@ -177,9 +177,10 @@ def test_parse_summary_supports_nested_vnish_1_3_5_payload() -> None:
     data = VnishData()
     _parse_summary(FIXTURE_SUMMARY_VNISH_1_3_5, data)
 
-    assert data.hashrate_instant == 96000
-    assert data.hashrate_average == 95500
-    assert data.hashrate_nominal == 100000
+    assert data.hashrate_instant == 96.0
+    assert data.hashrate_average == 95.5
+    assert data.hashrate_nominal == 100.0
+    assert data.hashrate_unit == "TH/s"
     assert data.power_consumption == 3200
     assert data.chip_temp_min == 55
     assert data.chip_temp_max == 78
@@ -272,9 +273,9 @@ def test_parse_summary_still_supports_legacy_flat_payload() -> None:
     data = VnishData()
     _parse_summary(FIXTURE_SUMMARY, data)
 
-    assert data.hashrate_instant == 96000
-    assert data.hashrate_average == 95500
-    assert data.hashrate_nominal == 100000
+    assert data.hashrate_instant == 96.0
+    assert data.hashrate_average == 95.5
+    assert data.hashrate_nominal == 100.0
     assert data.chip_temp_min == 55
     assert data.chip_temp_max == 78
     assert data.pcb_temp_min == 40
@@ -283,6 +284,38 @@ def test_parse_summary_still_supports_legacy_flat_payload() -> None:
     assert data.power_consumption == 3200
     assert data.miner_status == "mining"
     assert data.throttled is False
+
+
+def test_parse_summary_converts_gh_hashrate_to_th_and_rounds_efficiency() -> None:
+    data = VnishData()
+    _parse_summary(
+        {
+            "miner": {
+                "hr_realtime": 68471.19,
+                "hr_average": 68471.19,
+                "hr_nominal": 68471.19,
+                "power_consumption": 2074.0,
+            }
+        },
+        data,
+    )
+
+    assert data.hashrate_instant == 68.47
+    assert data.hashrate_average == 68.47
+    assert data.hashrate_nominal == 68.47
+    assert data.hashrate_unit == "TH/s"
+    assert data.efficiency == 30.29
+
+
+def test_parse_summary_keeps_already_th_hashrate_fields_and_rounds() -> None:
+    data = VnishData()
+    _parse_summary(
+        {"miner": {"instant_hashrate": 68.4712, "average_hashrate": 68.4712}},
+        data,
+    )
+
+    assert data.hashrate_instant == 68.47
+    assert data.hashrate_average == 68.47
 
 
 def test_get_info_returns_mac_for_unique_id() -> None:

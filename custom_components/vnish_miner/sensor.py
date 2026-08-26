@@ -19,8 +19,13 @@ from .const import DOMAIN
 from .coordinator import VnishData, VnishDataUpdateCoordinator
 from .entity import VnishEntity
 
-HASHRATE_GH = "GH/s"
+HASHRATE_TH = "TH/s"
 EFFICIENCY_J_TH = "J/TH"
+
+
+def _round_hashrate(value: float | None) -> float | None:
+    """Round a TH/s hashrate value to 2 decimals."""
+    return round(value, 2) if value is not None else None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -34,26 +39,26 @@ SENSOR_DESCRIPTIONS: tuple[VnishSensorEntityDescription, ...] = (
     VnishSensorEntityDescription(
         key="hashrate_instant",
         translation_key="hashrate_instant",
-        native_unit_of_measurement=HASHRATE_GH,
+        native_unit_of_measurement=HASHRATE_TH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:speedometer",
-        value_fn=lambda data: data.hashrate_instant,
+        value_fn=lambda data: _round_hashrate(data.hashrate_instant),
     ),
     VnishSensorEntityDescription(
         key="hashrate_average",
         translation_key="hashrate_average",
-        native_unit_of_measurement=HASHRATE_GH,
+        native_unit_of_measurement=HASHRATE_TH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:speedometer-medium",
-        value_fn=lambda data: data.hashrate_average,
+        value_fn=lambda data: _round_hashrate(data.hashrate_average),
     ),
     VnishSensorEntityDescription(
         key="hashrate_nominal",
         translation_key="hashrate_nominal",
-        native_unit_of_measurement=HASHRATE_GH,
+        native_unit_of_measurement=HASHRATE_TH,
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:speedometer-slow",
-        value_fn=lambda data: data.hashrate_nominal,
+        value_fn=lambda data: _round_hashrate(data.hashrate_nominal),
     ),
     VnishSensorEntityDescription(
         key="power_consumption",
