@@ -64,6 +64,7 @@ class VnishData:
 
     active_preset: str | None = None
     presets: list[str] = field(default_factory=list)
+    presets_map: dict[str, str] = field(default_factory=dict)
 
     restart_required: bool = False
     reboot_required: bool = False
@@ -160,24 +161,43 @@ def _parse_status(raw: dict[str, Any], data: VnishData) -> None:
 
 
 def _parse_settings(raw: dict[str, Any], data: VnishData) -> None:
-    data.active_preset = _dig(raw, "miner", "overclock", "preset")
+    raw_preset = _dig(raw, "miner", "overclock", "preset")
+    data.active_preset = _pretty_for_raw(data.presets_map, raw_preset)
     data.raw_settings = raw
+
+
+def _pretty_for_raw(presets_map: dict[str, str], raw_name: Any) -> str | None:
+    """Return the pretty label matching a raw preset name."""
+    if raw_name is None:
+        return None
+    raw_name = str(raw_name)
+    for pretty, raw in presets_map.items():
+        if raw == raw_name:
+            return pretty
+    return raw_name
 
 
 def _parse_presets(raw: dict[str, Any], data: VnishData) -> None:
     presets = raw
     if isinstance(raw, dict):
         presets = _first(raw, "presets", "profiles", default=raw.get("data", []))
-    names: list[str] = []
+    pretty_names: list[str] = []
+    presets_map: dict[str, str] = {}
     if isinstance(presets, list):
         for preset in presets:
             if isinstance(preset, dict):
                 name = _first(preset, "name", "preset", "id")
-                if name is not None:
-                    names.append(str(name))
+                if name is None:
+                    continue
+                raw_name = str(name)
+                pretty = str(_first(preset, "pretty", default=raw_name))
             else:
-                names.append(str(preset))
-    data.presets = names
+                raw_name = str(preset)
+                pretty = raw_name
+            pretty_names.append(pretty)
+            presets_map[pretty] = raw_name
+    data.presets = pretty_names
+    data.presets_map = presets_map
     data.raw_presets = raw if isinstance(raw, dict) else {}
 
 
@@ -221,8 +241,8 @@ class VnishDataUpdateCoordinator(DataUpdateCoordinator[VnishData]):
         _parse_summary(summary, data)
         _parse_info(info, data)
         _parse_status(status, data)
-        _parse_settings(settings, data)
         _parse_presets(presets, data)
+        _parse_settings(settings, data)
 
         self._build_device_info(data)
         return data

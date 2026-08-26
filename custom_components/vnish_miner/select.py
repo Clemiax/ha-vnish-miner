@@ -45,8 +45,9 @@ class VnishPresetSelectEntity(VnishEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Switch the miner to the requested preset."""
+        raw_name = self._data.presets_map.get(option, option)
         try:
-            await self.coordinator.client.set_preset(option)
+            await self.coordinator.client.set_preset(raw_name)
         except VnishError as err:
             raise HomeAssistantError(f"Failed to set preset {option}: {err}") from err
         await self.coordinator.async_request_refresh()

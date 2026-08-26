@@ -12,10 +12,11 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "custom_components" / "vnish_miner")
+    0, str(Path(__file__).resolve().parents[1] / "custom_components")
 )
 
-from vnish_client import (  # noqa: E402
+from vnish_miner.coordinator import VnishData, _parse_presets, _parse_settings  # noqa: E402
+from vnish_miner.vnish_client import (  # noqa: E402
     VnishAuthError,
     VnishClient,
     VnishConnectionError,
@@ -65,6 +66,17 @@ FIXTURE_PRESETS = {
         {"name": "2600"},
         {"name": "2990"},
         {"name": "3120"},
+    ]
+}
+
+FIXTURE_PRESETS_PRETTY = {
+    "presets": [
+        {"name": "disabled", "pretty": "Disabled"},
+        {"name": "2050", "pretty": "2050 watt ~ 80 TH"},
+        {"name": "2180", "pretty": "2180 watt ~ 85 TH"},
+        {"name": "2310", "pretty": "2310 watt ~ 90 TH"},
+        {"name": "2470", "pretty": "2470 watt ~ 95 TH"},
+        {"name": "2600", "pretty": "2600 watt ~ 100 TH"},
     ]
 }
 
@@ -135,6 +147,42 @@ def test_get_presets_returns_profile_list() -> None:
     result = asyncio.run(client.get_presets())
     names = [p["name"] for p in result["presets"]]
     assert names == ["2050", "2180", "2310", "2470", "2600", "2990", "3120"]
+
+
+def test_parse_presets_builds_pretty_names_and_map() -> None:
+    data = VnishData()
+    _parse_presets(FIXTURE_PRESETS_PRETTY, data)
+    assert data.presets == [
+        "Disabled",
+        "2050 watt ~ 80 TH",
+        "2180 watt ~ 85 TH",
+        "2310 watt ~ 90 TH",
+        "2470 watt ~ 95 TH",
+        "2600 watt ~ 100 TH",
+    ]
+    assert data.presets_map["2050 watt ~ 80 TH"] == "2050"
+    assert data.presets_map["Disabled"] == "disabled"
+
+
+def test_parse_presets_falls_back_to_name_when_pretty_missing() -> None:
+    data = VnishData()
+    _parse_presets(FIXTURE_PRESETS, data)
+    assert data.presets == ["2050", "2180", "2310", "2470", "2600", "2990", "3120"]
+    assert data.presets_map["2470"] == "2470"
+
+
+def test_parse_settings_resolves_active_preset_to_pretty_label() -> None:
+    data = VnishData()
+    _parse_presets(FIXTURE_PRESETS_PRETTY, data)
+    _parse_settings({"miner": {"overclock": {"preset": "2050"}}}, data)
+    assert data.active_preset == "2050 watt ~ 80 TH"
+
+
+def test_parse_settings_falls_back_to_raw_when_preset_unknown() -> None:
+    data = VnishData()
+    _parse_presets(FIXTURE_PRESETS_PRETTY, data)
+    _parse_settings({"miner": {"overclock": {"preset": "9999"}}}, data)
+    assert data.active_preset == "9999"
 
 
 def test_set_preset_sends_expected_payload() -> None:
