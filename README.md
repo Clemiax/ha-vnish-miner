@@ -85,8 +85,10 @@ The API key is generated from the miner's VNish web interface
 The YAML below is written for the Home Assistant **UI automation editor**
 (Settings → Automations & Scenes → Create Automation → ⋮ → *Edit in YAML*):
 just paste it as-is, no root `automation:` key and no leading `-`. If you
-instead maintain automations in an external `automations.yaml` file, prepend
-a `- ` to the block so it becomes a list item.
+instead maintain automations in an external `automations.yaml` file, prefix
+the first line with `- ` and indent every remaining line of the automation by
+two spaces so the entire block becomes one list item. Alternatively, use the
+UI editor (Menu ⋮ → *Edit in YAML*) and paste the block as-is.
 
 Entity IDs depend on the name you gave the miner during setup. Replace
 `<miner_name>` below with your own (e.g. `select.a1_s19kpro_overclock_preset`,
@@ -152,7 +154,7 @@ actions:
   - action: switch.turn_off
     target:
       entity_id: switch.<miner_name>_mining
-  - action: notify.mobile_app
+  - action: notify.notify  # Replace with your notify service (e.g. notify.mobile_app_your_phone)
     data:
       title: "⚠️ ASIC miner overheating"
       message: "Mining paused: chip temperature above 90°C."
