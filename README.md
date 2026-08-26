@@ -15,7 +15,7 @@ across these models.
   rounded to 2 decimals), power consumption (W), efficiency (J/TH, rounded to
   2 decimals), max chip and PCB temperature (°C), max fan speed / duty cycle
   (%), and miner status.
-- **Dynamic Overclock Preset select entity** — lists every autotune/overclock
+- **Dynamic overclock preset select entity** — lists every autotune/overclock
   preset available on the miner with clean, readable labels (e.g. `2050 watt
   ~ 80 TH`, `2600 watt ~ 100 TH`), while transparently mapping each label back
   to the raw preset ID the VNish API expects.
@@ -23,9 +23,10 @@ across these models.
   operations.
 - **Action buttons** — trigger a software restart of the VNish mining process
   or a full hardware reboot of the ASIC miner.
-- **Two-step config flow** — automatically detects the miner's hostname/name
-  (e.g. `A1-S19kPro`) from the device, with the option to fully customize the
-  name during onboarding or later from the integration's options.
+- **Two-step config flow** — validates the connection and API key, then detects
+  the miner's hostname/name (e.g. `A1-S19kPro`). You can choose a custom name
+  during onboarding and change it later, along with the API key and polling
+  interval, in the integration options.
 
 ## Installation
 
@@ -49,11 +50,11 @@ In Home Assistant: **Settings → Devices & services → Add integration →
 VNish ASIC Miner**.
 
 | Parameter | Description | Default |
-|---|---|---|
+| --- | --- | --- |
 | Host | IP address or hostname of the miner | — |
 | Port | REST API port of the miner | `80` |
 | API Key | VNish API key, sent as the `X-API-Key` header | — |
-| Miner Name | Friendly name for the device; auto-detected from the miner, editable during setup or later in Options | auto-detected |
+| Miner Name | Custom device name | auto-detected |
 | Scan Interval | Polling frequency, in seconds | `15` |
 
 The API key is generated from the miner's VNish web interface
@@ -62,7 +63,7 @@ The API key is generated from the miner's VNish web interface
 ## Exposed Entities
 
 | Entity key | Type | Unit | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `hashrate_instant` | sensor | TH/s | Instant (real-time) hashrate |
 | `hashrate_average` | sensor | TH/s | Average hashrate |
 | `hashrate_nominal` | sensor | TH/s | Nominal (rated) hashrate |
@@ -87,7 +88,7 @@ more efficient preset during peak hours to optimize electricity cost.
 ```yaml
 automation:
   - alias: "VNish - Off-peak preset (high power)"
-    description: "Switch the miner to the high-performance preset during off-peak hours"
+    description: "Use the high-performance preset during off-peak hours"
     trigger:
       - platform: time
         at: "22:00:00"
@@ -178,20 +179,20 @@ automation:
 
 ### Codebase structure
 
-```
+```text
 custom_components/vnish_miner/
 ├── __init__.py       # Config entry setup and platform forwarding
-├── button.py          # Buttons (restart mining / reboot hardware)
-├── config_flow.py     # Config flow + options flow
-├── const.py            # Domain constants
-├── coordinator.py     # DataUpdateCoordinator (summary/info/status/settings/presets)
-├── entity.py           # Shared base entity
+├── button.py         # Buttons (restart mining / reboot hardware)
+├── config_flow.py    # Config flow + options flow
+├── const.py          # Domain constants
+├── coordinator.py    # DataUpdateCoordinator (summary/info/status/settings/presets)
+├── entity.py         # Shared base entity
 ├── manifest.json
-├── select.py            # Overclock preset select entity
-├── sensor.py             # Metric sensors
+├── select.py         # Overclock preset select entity
+├── sensor.py         # Metric sensors
 ├── strings.json / translations/
-├── switch.py             # Pause/resume mining switch
-└── vnish_client.py       # Async REST client (aiohttp)
+├── switch.py         # Pause/resume mining switch
+└── vnish_client.py   # Async REST client (aiohttp)
 ```
 
 ### Running the test suite
