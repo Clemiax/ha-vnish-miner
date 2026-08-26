@@ -29,7 +29,9 @@ from vnish_miner.const import (  # noqa: E402
 )
 from vnish_miner.coordinator import (  # noqa: E402
     VnishData,
+    VnishDataUpdateCoordinator,
     _extract_default_name,
+    _extract_mac,
     _parse_info,
     _parse_presets,
     _parse_settings,
@@ -342,6 +344,42 @@ def test_extract_default_name_falls_back_to_flat_hostname() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("info", "expected"),
+    [
+        ({"system": {"hostname": "system-host"}}, "system-host"),
+        ({"network_status": {"hostname": "network-host"}}, "network-host"),
+        ({"miner_name": "root-miner"}, "root-miner"),
+        ({"host_name": "legacy-host"}, "legacy-host"),
+        ({"miner": {"miner_name": "nested-miner"}}, "nested-miner"),
+        ({"miner": {"hostname": "miner-host"}}, "miner-host"),
+        ({"miner": {"name": "miner-name"}}, "miner-name"),
+    ],
+)
+def test_extract_default_name_supports_vnish_variants(info, expected) -> None:
+    assert _extract_default_name(info, "192.168.1.50") == expected
+
+
+def test_extract_default_name_ignores_container_values() -> None:
+    assert _extract_default_name({"miner": {"model": "S19"}}, "192.168.1.50") == (
+        "192.168.1.50"
+    )
+
+
+@pytest.mark.parametrize(
+    "info",
+    [
+        {"system": {"network_status": {"mac_address": "AA:BB:CC:DD:EE:FF"}}},
+        {"network_status": {"mac": "AA:BB:CC:DD:EE:FF"}},
+        {"network_status": {"mac_address": "AA:BB:CC:DD:EE:FF"}},
+        {"mac": "AA:BB:CC:DD:EE:FF"},
+        {"mac_address": "AA:BB:CC:DD:EE:FF"},
+    ],
+)
+def test_extract_mac_supports_vnish_variants(info) -> None:
+    assert _extract_mac(info) == "AA:BB:CC:DD:EE:FF"
+
+
 def test_extract_default_name_falls_back_to_miner_label() -> None:
     assert (
         _extract_default_name({"miner": "Antminer S19k Pro"}, "192.168.1.50")
@@ -365,6 +403,19 @@ def test_parse_info_still_supports_flat_legacy_payload() -> None:
     _parse_info(FIXTURE_INFO, data)
     assert data.hostname == "antminer-s19kpro"
     assert data.mac == "AA:BB:CC:DD:EE:FF"
+
+
+def test_device_info_uses_configured_name() -> None:
+    coordinator = object.__new__(VnishDataUpdateCoordinator)
+    coordinator.entry = _make_config_entry(
+        {CONF_HOST: "192.168.1.50", CONF_NAME: "My Miner"}
+    )
+
+    coordinator._build_device_info(
+        VnishData(mac="AA:BB:CC:DD:EE:FF", hostname="firmware-host")
+    )
+
+    assert coordinator.device_info["name"] == "My Miner"
 
 
 # -- Config flow ------------------------------------------------------------
@@ -400,7 +451,7 @@ def test_config_flow_user_step_advances_to_device_step(monkeypatch) -> None:
     )
 
     assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "device"
+    assert result["step_id"] == "device_config"
     assert flow._default_name == "A1-S19kPro"
     assert flow.unique_id == "02:39:C9:79:A8:3C"
 
@@ -443,7 +494,7 @@ def test_config_flow_aborts_if_unique_id_already_configured(monkeypatch) -> None
         )
 
 
-def test_config_flow_device_step_creates_entry_with_combined_data() -> None:
+def test_config_flow_device_config_step_creates_entry_with_combined_data() -> None:
     flow = config_flow.VnishConfigFlow()
     flow.hass = _make_hass()
     flow.handler = "vnish_miner"
@@ -456,7 +507,7 @@ def test_config_flow_device_step_creates_entry_with_combined_data() -> None:
     flow._default_name = "A1-S19kPro"
 
     result = asyncio.run(
-        flow.async_step_device({CONF_NAME: "My Miner", CONF_SCAN_INTERVAL: 30})
+        flow.async_step_device_config({CONF_NAME: "My Miner", CONF_SCAN_INTERVAL: 30})
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
@@ -468,6 +519,31 @@ def test_config_flow_device_step_creates_entry_with_combined_data() -> None:
         CONF_NAME: "My Miner",
         CONF_SCAN_INTERVAL: 30,
     }
+
+
+def test_config_flow_preserves_unique_id_through_both_steps(monkeypatch) -> None:
+    monkeypatch.setattr(config_flow, "_validate_input", AsyncMock(return_value=NESTED_INFO))
+    flow = config_flow.VnishConfigFlow()
+    flow.hass = _make_hass()
+    flow.handler = "vnish_miner"
+    flow.context = {}
+
+    first_result = asyncio.run(
+        flow.async_step_user(
+            {CONF_HOST: "192.168.1.50", CONF_API_KEY: "key", CONF_PORT: DEFAULT_PORT}
+        )
+    )
+    assert first_result["step_id"] == "device_config"
+
+    result = asyncio.run(
+        flow.async_step_device_config(
+            {CONF_NAME: "My Miner", CONF_SCAN_INTERVAL: 30}
+        )
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "My Miner"
+    assert flow.unique_id == "02:39:C9:79:A8:3C"
 
 
 # -- Options flow -------------------------------------------------------------

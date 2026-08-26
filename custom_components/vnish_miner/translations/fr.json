@@ -10,7 +10,7 @@
           "port": "Port"
         }
       },
-      "device": {
+      "device_config": {
         "title": "Nommez votre mineur VNish",
         "description": "Choisissez un nom pour ce mineur ainsi que sa fréquence d'interrogation.",
         "data": {

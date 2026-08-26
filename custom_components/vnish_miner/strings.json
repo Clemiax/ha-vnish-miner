@@ -10,7 +10,7 @@
           "port": "Port"
         }
       },
-      "device": {
+      "device_config": {
         "title": "Name your VNish miner",
         "description": "Choose a name for this miner and how often it should be polled.",
         "data": {

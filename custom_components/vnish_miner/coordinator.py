@@ -146,32 +146,56 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
     data.raw_summary = raw
 
 
-def _extract_default_name(info: dict[str, Any], default_host: str | None = None) -> str | None:
+def _first_text(*values: Any) -> str | None:
+    """Return the first non-empty scalar string representation."""
+    for value in values:
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+
+def _extract_default_name(
+    info: dict[str, Any], default_host: str | None = None
+) -> str | None:
     """Derive a sensible default device/miner name from an ``/api/v1/info`` payload.
 
     Checks, in order, the nested VNish 1.3.x layout, then flatter/legacy layouts,
     before falling back to ``default_host`` (e.g. the configured host/IP).
     """
-    candidates = (
+    return _first_text(
         _dig(info, "system", "miner_name"),
         _dig(info, "system", "network_status", "hostname"),
+        _dig(info, "system", "hostname"),
+        _dig(info, "network_status", "hostname"),
         info.get("hostname"),
         info.get("host_name"),
         info.get("miner_name"),
+        _dig(info, "miner", "miner_name"),
+        _dig(info, "miner", "hostname"),
+        _dig(info, "miner", "name"),
         info.get("miner"),
+        default_host,
     )
-    for candidate in candidates:
-        if candidate:
-            return str(candidate)
-    return default_host
+
+
+def _extract_mac(info: dict[str, Any]) -> str | None:
+    """Extract a MAC address from nested and legacy VNish info payloads."""
+    return _first_text(
+        _dig(info, "system", "network_status", "mac"),
+        _dig(info, "system", "network_status", "mac_address"),
+        _dig(info, "network_status", "mac"),
+        _dig(info, "network_status", "mac_address"),
+        info.get("mac"),
+        info.get("mac_address"),
+    )
 
 
 def _parse_info(raw: dict[str, Any], data: VnishData) -> None:
     data.fw_version = _first(raw, "fw_version", "version")
     data.model = _first(raw, "miner_model", "model", "asic_model")
-    data.mac = _dig(raw, "system", "network_status", "mac") or _first(
-        raw, "mac", "mac_address"
-    )
+    data.mac = _extract_mac(raw)
     data.hostname = _extract_default_name(raw)
     data.raw_info = raw
 

@@ -20,7 +20,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .coordinator import _dig, _extract_default_name
+from .coordinator import _extract_default_name, _extract_mac
 from .vnish_client import VnishAuthError, VnishClient, VnishConnectionError, VnishError
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,11 +95,7 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception during config flow validation")
                 errors["base"] = "unknown"
             else:
-                mac = (
-                    _dig(info, "system", "network_status", "mac")
-                    or info.get("mac")
-                    or info.get("mac_address")
-                )
+                mac = _extract_mac(info)
                 unique_id = mac or f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
@@ -108,13 +104,13 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._default_name = _extract_default_name(
                     info, user_input[CONF_HOST]
                 )
-                return await self.async_step_device()
+                return await self.async_step_device_config()
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_SCHEMA, errors=errors
         )
 
-    async def async_step_device(
+    async def async_step_device_config(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the device naming/options step."""
@@ -123,7 +119,7 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=user_input[CONF_NAME], data=data)
 
         return self.async_show_form(
-            step_id="device", data_schema=_device_schema(self._default_name)
+            step_id="device_config", data_schema=_device_schema(self._default_name)
         )
 
     @staticmethod
