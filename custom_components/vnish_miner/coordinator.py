@@ -162,11 +162,16 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
     cooling = _first(miner, "cooling", default={})
     if not isinstance(cooling, dict):
         cooling = {}
-    fan_speed_max = _first(cooling, "fan_duty")
+    fan_speed_max = _first(
+        cooling, "fan_duty", default=_first(miner, "fan_duty")
+    )
     if fan_speed_max is None:
+        cooling_fans = _first(cooling, "fans", default=[])
+        if not isinstance(cooling_fans, list):
+            cooling_fans = []
         fan_speeds = [
             speed
-            for fan in _first(cooling, "fans", default=[]) or []
+            for fan in cooling_fans
             if isinstance(fan, dict)
             for speed in [_first(fan, "rpm_percent", "speed_percent", "speed")]
             if speed is not None
@@ -200,7 +205,12 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
         default=_first(raw, "power_consumption", "power"),
     )
 
-    efficiency = _first(miner, "power_efficiency")
+    efficiency = _first(
+        miner,
+        "power_efficiency",
+        "efficiency",
+        default=_first(raw, "power_efficiency", "efficiency"),
+    )
     if efficiency is None and data.power_consumption and data.hashrate_average:
         th_average = _to_th(data.hashrate_average, data.hashrate_unit)
         if th_average:
@@ -218,11 +228,18 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
         data.miner_status = status
 
     status_block = status if isinstance(status, dict) else {}
-    throttled_pct = _first(status_block, "throttled", default=100)
-    is_throttled = isinstance(throttled_pct, (int, float)) and throttled_pct < 100
-    if not is_throttled:
+    throttled_value = _first(status_block, "throttled", default=None)
+    if isinstance(throttled_value, bool):
+        is_throttled = throttled_value
+    elif isinstance(throttled_value, (int, float)):
+        is_throttled = throttled_value < 100
+    else:
         is_throttled = bool(
-            _first(miner, "throttled", default=_first(raw, "throttled", "overheat", default=False))
+            _first(
+                miner,
+                "throttled",
+                default=_first(raw, "throttled", "overheat", default=False),
+            )
         )
     data.throttled = bool(is_throttled)
 

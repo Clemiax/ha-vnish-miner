@@ -232,6 +232,42 @@ def test_parse_summary_detects_throttled_state() -> None:
     assert data.throttled is True
 
 
+@pytest.mark.parametrize(
+    "value, expected", [(False, False), (True, True), (100, False), (80, True)]
+)
+def test_parse_summary_supports_boolean_and_percentage_throttled_values(
+    value, expected
+) -> None:
+    data = VnishData()
+    _parse_summary(
+        {"miner": {"miner_status": {"miner_state": "mining", "throttled": value}}},
+        data,
+    )
+    assert data.throttled is expected
+
+
+def test_parse_summary_supports_root_fan_duty_and_explicit_efficiency() -> None:
+    data = VnishData()
+    _parse_summary(
+        {
+            "miner": {
+                "fan_duty": 72,
+                "power_efficiency": 31.5,
+                "cooling": {"fans": None},
+            }
+        },
+        data,
+    )
+    assert data.fan_speed_max == 72
+    assert data.efficiency == 31.5
+
+
+def test_parse_summary_ignores_malformed_cooling_fans() -> None:
+    data = VnishData()
+    _parse_summary({"miner": {"cooling": {"fans": 2}, "fan_speed_max": 64}}, data)
+    assert data.fan_speed_max == 64
+
+
 def test_parse_summary_still_supports_legacy_flat_payload() -> None:
     data = VnishData()
     _parse_summary(FIXTURE_SUMMARY, data)
