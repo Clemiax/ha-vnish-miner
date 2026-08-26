@@ -1,5 +1,7 @@
 # VNish ASIC Miner — Home Assistant Integration
 
+<p align="center"><img src="images/logo.png" alt="VNish ASIC Miner Logo" width="160"></p>
+
 A full-featured Home Assistant integration for ASIC miners running **VNish**
 firmware. Monitor performance and control mining directly from Home
 Assistant, and build automations around electricity pricing, temperature

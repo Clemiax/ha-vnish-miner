@@ -1,7 +1,7 @@
 {
   "domain": "vnish_miner",
   "name": "VNish ASIC Miner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/Clemiax/ha-vnish-miner",
   "issue_tracker": "https://github.com/Clemiax/ha-vnish-miner/issues",
   "codeowners": ["@Clemiax"],
