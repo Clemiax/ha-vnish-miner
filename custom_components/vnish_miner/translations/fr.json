@@ -7,7 +7,14 @@
         "data": {
           "host": "Hôte (adresse IP ou nom d'hôte)",
           "api_key": "Clé API",
-          "port": "Port",
+          "port": "Port"
+        }
+      },
+      "device": {
+        "title": "Nommez votre mineur VNish",
+        "description": "Choisissez un nom pour ce mineur ainsi que sa fréquence d'interrogation.",
+        "data": {
+          "name": "Nom du mineur",
           "scan_interval": "Intervalle de rafraîchissement (secondes)"
         }
       }
@@ -26,6 +33,7 @@
       "init": {
         "title": "Modifier les options du mineur VNish",
         "data": {
+          "name": "Nom du mineur",
           "api_key": "Clé API",
           "scan_interval": "Intervalle de rafraîchissement (secondes)"
         }

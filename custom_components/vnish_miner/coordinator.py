@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, MANUFACTURER
+from .const import CONF_HOST, CONF_NAME, DOMAIN, MANUFACTURER
 from .vnish_client import VnishAuthError, VnishClient, VnishConnectionError, VnishError
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,11 +146,33 @@ def _parse_summary(raw: dict[str, Any], data: VnishData) -> None:
     data.raw_summary = raw
 
 
+def _extract_default_name(info: dict[str, Any], default_host: str | None = None) -> str | None:
+    """Derive a sensible default device/miner name from an ``/api/v1/info`` payload.
+
+    Checks, in order, the nested VNish 1.3.x layout, then flatter/legacy layouts,
+    before falling back to ``default_host`` (e.g. the configured host/IP).
+    """
+    candidates = (
+        _dig(info, "system", "miner_name"),
+        _dig(info, "system", "network_status", "hostname"),
+        info.get("hostname"),
+        info.get("host_name"),
+        info.get("miner_name"),
+        info.get("miner"),
+    )
+    for candidate in candidates:
+        if candidate:
+            return str(candidate)
+    return default_host
+
+
 def _parse_info(raw: dict[str, Any], data: VnishData) -> None:
     data.fw_version = _first(raw, "fw_version", "version")
     data.model = _first(raw, "miner_model", "model", "asic_model")
-    data.mac = _first(raw, "mac", "mac_address")
-    data.hostname = _first(raw, "hostname", "host_name")
+    data.mac = _dig(raw, "system", "network_status", "mac") or _first(
+        raw, "mac", "mac_address"
+    )
+    data.hostname = _extract_default_name(raw)
     data.raw_info = raw
 
 
@@ -265,10 +287,15 @@ class VnishDataUpdateCoordinator(DataUpdateCoordinator[VnishData]):
 
     def _build_device_info(self, data: VnishData) -> None:
         identifier = data.mac or self.entry.entry_id
+        name = (
+            self.entry.data.get(CONF_NAME)
+            or data.hostname
+            or f"VNish Miner ({self.entry.data.get(CONF_HOST)})"
+        )
         self._device_info = DeviceInfo(
             identifiers={(DOMAIN, identifier)},
             connections={("mac", data.mac)} if data.mac else set(),
-            name=data.hostname or f"VNish Miner ({self.entry.data.get('host')})",
+            name=name,
             manufacturer=MANUFACTURER,
             model=data.model,
             sw_version=data.fw_version,

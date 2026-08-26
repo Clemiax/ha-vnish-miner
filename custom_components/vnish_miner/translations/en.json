@@ -7,7 +7,14 @@
         "data": {
           "host": "Host (IP address or hostname)",
           "api_key": "API key",
-          "port": "Port",
+          "port": "Port"
+        }
+      },
+      "device": {
+        "title": "Name your VNish miner",
+        "description": "Choose a name for this miner and how often it should be polled.",
+        "data": {
+          "name": "Miner name",
           "scan_interval": "Polling interval (seconds)"
         }
       }
@@ -26,6 +33,7 @@
       "init": {
         "title": "Update VNish miner options",
         "data": {
+          "name": "Miner name",
           "api_key": "API key",
           "scan_interval": "Polling interval (seconds)"
         }

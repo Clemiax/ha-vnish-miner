@@ -13,12 +13,14 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     CONF_API_KEY,
     CONF_HOST,
+    CONF_NAME,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
+from .coordinator import _dig, _extract_default_name
 from .vnish_client import VnishAuthError, VnishClient, VnishConnectionError, VnishError
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,11 +32,21 @@ STEP_USER_SCHEMA = vol.Schema(
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=65535)
         ),
-        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
-            vol.Coerce(int), vol.Range(min=5)
-        ),
     }
 )
+
+
+def _device_schema(default_name: str) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME, default=default_name): vol.All(
+                str, vol.Strip, vol.Length(min=1)
+            ),
+            vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+                vol.Coerce(int), vol.Range(min=5)
+            ),
+        }
+    )
 
 
 async def _validate_input(
@@ -60,10 +72,14 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        self._connection_data: dict[str, Any] = {}
+        self._default_name: str = ""
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial (connection) step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -79,16 +95,35 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception during config flow validation")
                 errors["base"] = "unknown"
             else:
-                mac = info.get("mac") or info.get("mac_address")
+                mac = (
+                    _dig(info, "system", "network_status", "mac")
+                    or info.get("mac")
+                    or info.get("mac_address")
+                )
                 unique_id = mac or f"{user_input[CONF_HOST]}:{user_input[CONF_PORT]}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
-                title = info.get("hostname") or user_input[CONF_HOST]
-                return self.async_create_entry(title=title, data=user_input)
+                self._connection_data = dict(user_input)
+                self._default_name = _extract_default_name(
+                    info, user_input[CONF_HOST]
+                )
+                return await self.async_step_device()
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_SCHEMA, errors=errors
+        )
+
+    async def async_step_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the device naming/options step."""
+        if user_input is not None:
+            data = {**self._connection_data, **user_input}
+            return self.async_create_entry(title=user_input[CONF_NAME], data=data)
+
+        return self.async_show_form(
+            step_id="device", data_schema=_device_schema(self._default_name)
         )
 
     @staticmethod
@@ -125,9 +160,17 @@ class VnishOptionsFlowHandler(OptionsFlow):
             except VnishError:
                 errors["base"] = "unknown"
             else:
-                new_data = {**self.config_entry.data, CONF_API_KEY: user_input[CONF_API_KEY]}
+                new_name = user_input[CONF_NAME]
+                new_data = {
+                    **self.config_entry.data,
+                    CONF_API_KEY: user_input[CONF_API_KEY],
+                    CONF_NAME: new_name,
+                }
+                update_kwargs: dict[str, Any] = {"data": new_data}
+                if new_name != self.config_entry.title:
+                    update_kwargs["title"] = new_name
                 self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=new_data
+                    self.config_entry, **update_kwargs
                 )
                 return self.async_create_entry(
                     title="",
@@ -135,6 +178,9 @@ class VnishOptionsFlowHandler(OptionsFlow):
                 )
 
         current_api_key = self.config_entry.data.get(CONF_API_KEY, "")
+        current_name = self.config_entry.data.get(
+            CONF_NAME, self.config_entry.title
+        )
         current_scan_interval = self.config_entry.options.get(
             CONF_SCAN_INTERVAL,
             self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
@@ -142,6 +188,9 @@ class VnishOptionsFlowHandler(OptionsFlow):
 
         options_schema = vol.Schema(
             {
+                vol.Required(CONF_NAME, default=current_name): vol.All(
+                    str, vol.Strip, vol.Length(min=1)
+                ),
                 vol.Required(CONF_API_KEY, default=current_api_key): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=current_scan_interval

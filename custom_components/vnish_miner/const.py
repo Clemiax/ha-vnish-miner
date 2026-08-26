@@ -7,6 +7,7 @@ CONF_HOST = "host"
 CONF_PORT = "port"
 CONF_API_KEY = "api_key"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_NAME = "name"
 
 DEFAULT_PORT = 80
 DEFAULT_SCAN_INTERVAL = 15
