@@ -171,6 +171,46 @@ def test_parse_presets_falls_back_to_name_when_pretty_missing() -> None:
     assert data.presets_map["2470"] == "2470"
 
 
+def test_parse_presets_falls_back_for_empty_pretty_and_remains_bidirectional() -> None:
+    data = VnishData()
+    _parse_presets(
+        {
+            "presets": [
+                {"name": "eco", "pretty": ""},
+                {"name": "silent", "pretty": None},
+            ]
+        },
+        data,
+    )
+
+    assert data.presets == ["eco", "silent"]
+    for option in data.presets:
+        raw_name = data.presets_map[option]
+        _parse_settings({"miner": {"overclock": {"preset": raw_name}}}, data)
+        assert data.active_preset == option
+
+
+def test_parse_presets_disambiguates_duplicate_pretty_labels() -> None:
+    data = VnishData()
+    _parse_presets(
+        {
+            "presets": [
+                {"name": "2050", "pretty": "Eco"},
+                {"name": "2180", "pretty": "Eco"},
+            ]
+        },
+        data,
+    )
+
+    assert data.presets == ["Eco", "Eco (2180)"]
+    assert data.presets_map == {"Eco": "2050", "Eco (2180)": "2180"}
+    for option in data.presets:
+        _parse_settings(
+            {"miner": {"overclock": {"preset": data.presets_map[option]}}}, data
+        )
+        assert data.active_preset == option
+
+
 def test_parse_settings_resolves_active_preset_to_pretty_label() -> None:
     data = VnishData()
     _parse_presets(FIXTURE_PRESETS_PRETTY, data)

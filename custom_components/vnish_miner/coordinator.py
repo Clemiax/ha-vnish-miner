@@ -183,6 +183,7 @@ def _parse_presets(raw: dict[str, Any], data: VnishData) -> None:
         presets = _first(raw, "presets", "profiles", default=raw.get("data", []))
     pretty_names: list[str] = []
     presets_map: dict[str, str] = {}
+    raw_names: set[str] = set()
     if isinstance(presets, list):
         for preset in presets:
             if isinstance(preset, dict):
@@ -190,10 +191,25 @@ def _parse_presets(raw: dict[str, Any], data: VnishData) -> None:
                 if name is None:
                     continue
                 raw_name = str(name)
-                pretty = str(_first(preset, "pretty", default=raw_name))
+                pretty_value = _first(preset, "pretty")
+                pretty = str(pretty_value).strip() if pretty_value is not None else ""
+                pretty = pretty or raw_name
             else:
                 raw_name = str(preset)
                 pretty = raw_name
+
+            # A select option must identify exactly one raw preset. Ignore exact
+            # duplicate presets and disambiguate duplicate/colliding labels.
+            if raw_name in raw_names:
+                continue
+            raw_names.add(raw_name)
+            if pretty in presets_map:
+                base = f"{pretty} ({raw_name})"
+                pretty = base
+                suffix = 2
+                while pretty in presets_map:
+                    pretty = f"{base} [{suffix}]"
+                    suffix += 1
             pretty_names.append(pretty)
             presets_map[pretty] = raw_name
     data.presets = pretty_names
