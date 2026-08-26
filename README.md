@@ -82,78 +82,101 @@ The API key is generated from the miner's VNish web interface
 
 ## Automation Examples
 
-### Off-peak / peak time-of-use preset switching
+The YAML below is written for the Home Assistant **UI automation editor**
+(Settings → Automations & Scenes → Create Automation → ⋮ → *Edit in YAML*):
+just paste it as-is, no root `automation:` key and no leading `-`. If you
+instead maintain automations in an external `automations.yaml` file, prepend
+a `- ` to the block so it becomes a list item.
 
-Switch to a higher-power preset during off-peak hours and drop to a lower,
-more efficient preset during peak hours to optimize electricity cost.
+Entity IDs depend on the name you gave the miner during setup. Replace
+`<miner_name>` below with your own (e.g. `select.a1_s19kpro_overclock_preset`,
+`switch.a1_s19kpro_mining`).
+
+### Off-Peak / Peak Time-of-Use Management
+
+A single automation that switches to a high-power preset at the start of the
+off-peak window and back to an efficient eco preset at the start of the peak
+window, using `trigger_id` and `choose` to keep both schedules in one place.
 
 ```yaml
-automation:
-  - alias: "VNish - Off-peak preset (high power)"
-    description: "Use the high-performance preset during off-peak hours"
-    trigger:
-      - platform: time
-        at: "22:00:00"
-    action:
-      - service: select.select_option
-        target:
-          entity_id: select.a1_s19kpro_overclock_preset
-        data:
-          option: "2600 watt ~ 100 TH"
-
-  - alias: "VNish - Peak preset (eco)"
-    description: "Switch the miner to a lower-power eco preset during peak hours"
-    trigger:
-      - platform: time
-        at: "06:00:00"
-    action:
-      - service: select.select_option
-        target:
-          entity_id: select.a1_s19kpro_overclock_preset
-        data:
-          option: "2050 watt ~ 80 TH"
+alias: "VNish - Off-peak / peak time-of-use management"
+description: "Switch overclock preset depending on off-peak or peak electricity hours"
+triggers:
+  - trigger: time
+    at: "22:00:00"
+    id: "off_peak"
+  - trigger: time
+    at: "06:00:00"
+    id: "peak"
+conditions: []
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "off_peak"
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: select.<miner_name>_overclock_preset
+            data:
+              option: "2600 watt ~ 100 TH"
+      - conditions:
+          - condition: trigger
+            id: "peak"
+        sequence:
+          - action: select.select_option
+            target:
+              entity_id: select.<miner_name>_overclock_preset
+            data:
+              option: "2050 watt ~ 80 TH"
+mode: single
 ```
 
 ### Overheat safety
 
 Automatically pause mining if the chip temperature exceeds a critical
-threshold, and resume once the miner has cooled down.
+threshold, and resume once the miner has cooled down. This uses two separate
+automations, pasted into the editor one at a time.
 
 ```yaml
-automation:
-  - alias: "VNish - Overheat safety (pause)"
-    description: "Pause mining if chip temperature is critical"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.a1_s19kpro_max_chip_temperature
-        above: 90
-        for:
-          minutes: 1
-    action:
-      - service: switch.turn_off
-        target:
-          entity_id: switch.a1_s19kpro_mining
-      - service: notify.mobile_app
-        data:
-          title: "⚠️ ASIC miner overheating"
-          message: "Mining paused: chip temperature above 90°C."
+alias: "VNish - Overheat safety (pause)"
+description: "Pause mining if chip temperature is critical"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.<miner_name>_max_chip_temperature
+    above: 90
+    for:
+      minutes: 1
+conditions: []
+actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.<miner_name>_mining
+  - action: notify.mobile_app
+    data:
+      title: "⚠️ ASIC miner overheating"
+      message: "Mining paused: chip temperature above 90°C."
+mode: single
+```
 
-  - alias: "VNish - Resume after cooldown"
-    description: "Resume mining once temperature is back to normal"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.a1_s19kpro_max_chip_temperature
-        below: 80
-        for:
-          minutes: 5
-    condition:
-      - condition: state
-        entity_id: switch.a1_s19kpro_mining
-        state: "off"
-    action:
-      - service: switch.turn_on
-        target:
-          entity_id: switch.a1_s19kpro_mining
+```yaml
+alias: "VNish - Resume after cooldown"
+description: "Resume mining once temperature is back to normal"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.<miner_name>_max_chip_temperature
+    below: 80
+    for:
+      minutes: 5
+conditions:
+  - condition: state
+    entity_id: switch.<miner_name>_mining
+    state: "off"
+actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.<miner_name>_mining
+mode: single
 ```
 
 ### Error watchdog auto-restart
@@ -162,19 +185,20 @@ Automatically restart the mining process if the miner status remains in an
 error state for too long.
 
 ```yaml
-automation:
-  - alias: "VNish - Restart on error"
-    description: "Restart the mining process if the miner status stays abnormal"
-    trigger:
-      - platform: state
-        entity_id: sensor.a1_s19kpro_miner_status
-        to: "error"
-        for:
-          minutes: 3
-    action:
-      - service: button.press
-        target:
-          entity_id: button.a1_s19kpro_restart_mining
+alias: "VNish - Restart on error"
+description: "Restart the mining process if the miner status stays abnormal"
+triggers:
+  - trigger: state
+    entity_id: sensor.<miner_name>_miner_status
+    to: "error"
+    for:
+      minutes: 3
+conditions: []
+actions:
+  - action: button.press
+    target:
+      entity_id: button.<miner_name>_restart_mining
+mode: single
 ```
 
 ## Development & Testing
