@@ -1,11 +1,11 @@
 {
   "domain": "vnish_miner",
   "name": "VNish ASIC Miner",
-  "version": "1.0.1",
-  "documentation": "https://github.com/Clemiax/ha-vnish-miner",
-  "issue_tracker": "https://github.com/Clemiax/ha-vnish-miner/issues",
   "codeowners": ["@Clemiax"],
   "config_flow": true,
+  "documentation": "https://github.com/Clemiax/ha-vnish-miner",
   "iot_class": "local_polling",
-  "requirements": []
+  "issue_tracker": "https://github.com/Clemiax/ha-vnish-miner/issues",
+  "requirements": [],
+  "version": "1.0.1"
 }
