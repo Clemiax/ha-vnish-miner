@@ -15,6 +15,7 @@ from .coordinator import VnishDataUpdateCoordinator
 from .entity import VnishEntity
 from .vnish_client import VnishClient, VnishError
 
+
 @dataclass(frozen=True, kw_only=True)
 class VnishButtonEntityDescription(ButtonEntityDescription):
     """Describes a VNish button entity."""

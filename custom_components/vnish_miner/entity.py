@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import VnishDataUpdateCoordinator, VnishData
+from .coordinator import VnishData, VnishDataUpdateCoordinator
 
 
 class VnishEntity(CoordinatorEntity[VnishDataUpdateCoordinator]):

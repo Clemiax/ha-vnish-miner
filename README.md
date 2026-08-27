@@ -2,6 +2,12 @@
 
 <p align="center"><img src="images/logo.png" alt="VNish ASIC Miner Logo" width="160"></p>
 
+<p align="center">
+  <a href="https://github.com/Clemiax/ha-vnish-miner/actions/workflows/validate.yaml"><img src="https://github.com/Clemiax/ha-vnish-miner/actions/workflows/validate.yaml/badge.svg" alt="Validate"></a>
+  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom Integration"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
 A full-featured Home Assistant integration for ASIC miners running **VNish**
 firmware. Monitor performance and control mining directly from Home
 Assistant, and build automations around electricity pricing, temperature

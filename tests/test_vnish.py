@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from typing import Self
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,10 +17,9 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parents[1] / "custom_components")
 )
 
-from homeassistant.data_entry_flow import AbortFlow, FlowResultType  # noqa: E402
-
-from vnish_miner import config_flow  # noqa: E402
-from vnish_miner.const import (  # noqa: E402
+from homeassistant.data_entry_flow import AbortFlow, FlowResultType
+from vnish_miner import config_flow
+from vnish_miner.const import (
     CONF_API_KEY,
     CONF_HOST,
     CONF_NAME,
@@ -27,7 +27,7 @@ from vnish_miner.const import (  # noqa: E402
     CONF_SCAN_INTERVAL,
     DEFAULT_PORT,
 )
-from vnish_miner.coordinator import (  # noqa: E402
+from vnish_miner.coordinator import (
     VnishData,
     VnishDataUpdateCoordinator,
     _extract_default_name,
@@ -38,7 +38,7 @@ from vnish_miner.coordinator import (  # noqa: E402
     _parse_summary,
     _to_th,
 )
-from vnish_miner.vnish_client import (  # noqa: E402
+from vnish_miner.vnish_client import (
     VnishAuthError,
     VnishClient,
     VnishConnectionError,
@@ -111,7 +111,7 @@ class _FakeResponse:
         self._payload = payload
         self.content_length = content_length
 
-    async def __aenter__(self) -> "_FakeResponse":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *exc_info) -> None:

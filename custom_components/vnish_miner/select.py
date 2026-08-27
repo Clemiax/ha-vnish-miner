@@ -12,6 +12,7 @@ from .coordinator import VnishDataUpdateCoordinator
 from .entity import VnishEntity
 from .vnish_client import VnishError
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,

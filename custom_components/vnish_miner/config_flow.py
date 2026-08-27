@@ -91,7 +91,7 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             except VnishError:
                 errors["base"] = "unknown"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 _LOGGER.exception("Unexpected exception during config flow validation")
                 errors["base"] = "unknown"
             else:
@@ -124,7 +124,7 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: ConfigEntry) -> "VnishOptionsFlowHandler":
+    def async_get_options_flow(config_entry: ConfigEntry) -> VnishOptionsFlowHandler:
         """Get the options flow for this handler."""
         return VnishOptionsFlowHandler(config_entry)
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Self
 
 import aiohttp
 
@@ -44,12 +44,12 @@ class VnishClient:
         """Return the base URL of the miner API."""
         return f"http://{self._host}:{self._port}"
 
-    async def __aenter__(self) -> "VnishClient":
+    async def __aenter__(self) -> Self:
         if self._session is None:
             self._session = aiohttp.ClientSession()
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         await self.close()
 
     async def close(self) -> None:
