@@ -126,14 +126,11 @@ class VnishConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> VnishOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return VnishOptionsFlowHandler(config_entry)
+        return VnishOptionsFlowHandler()
 
 
 class VnishOptionsFlowHandler(OptionsFlow):
     """Handle options for the VNish ASIC Miner integration."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

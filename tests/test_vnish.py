@@ -665,6 +665,14 @@ def _make_config_entry(data: dict, options: dict | None = None, title: str = "Ol
     return entry
 
 
+def _make_options_flow(entry) -> config_flow.VnishOptionsFlowHandler:
+    flow = config_flow.VnishOptionsFlowHandler()
+    flow.hass = MagicMock()
+    flow.handler = entry.entry_id
+    flow.hass.config_entries.async_get_known_entry.return_value = entry
+    return flow
+
+
 def test_config_flow_user_step_advances_to_device_step(monkeypatch) -> None:
     monkeypatch.setattr(config_flow, "_validate_input", AsyncMock(return_value=NESTED_INFO))
     flow = config_flow.VnishConfigFlow()
@@ -788,8 +796,7 @@ def test_options_flow_updates_name_and_title(monkeypatch) -> None:
         },
         title="Old Name",
     )
-    flow = config_flow.VnishOptionsFlowHandler(entry)
-    flow.hass = MagicMock()
+    flow = _make_options_flow(entry)
 
     result = asyncio.run(
         flow.async_step_init(
@@ -817,8 +824,7 @@ def test_options_flow_keeps_title_untouched_when_name_unchanged(monkeypatch) -> 
         },
         title="Same Name",
     )
-    flow = config_flow.VnishOptionsFlowHandler(entry)
-    flow.hass = MagicMock()
+    flow = _make_options_flow(entry)
 
     asyncio.run(
         flow.async_step_init(
